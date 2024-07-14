@@ -1,21 +1,28 @@
 import 'dart:developer';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_auth_practice/services/notification_service.dart';
 import 'package:firebase_auth_practice/sign_out_page.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:firebase_auth_practice/firebase_options.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
+final NotificationService service = NotificationService();
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.android);
+  await service.initialize();
+  // await FirebaseStorage.instance.useStorageEmulator('localhost', 9199);
+  // FirebaseFirestore.instance.useFirestoreEmulator('localhost', 8080);
   FirebaseAuth.instance.authStateChanges().listen((User? user) {
     if (user == null) {
       log('User Signed Out');
     } else {
       log('User is signed in!');
-      log('User uId: ${user.uid}, Email: ${user.email ?? 'No Email'}');
+      log('User uId: ${user.uid}');
     }
   });
   runApp(const MyApp());
@@ -46,30 +53,39 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  late final TextEditingController _emailController;
-  late final TextEditingController _passwordController;
+  late final TextEditingController _emailController,
+      _passwordController,
+      _phoneController,
+      _smsCodeController;
   bool isPassHidden = true;
+  String verID = '';
 
   @override
   void initState() {
     super.initState();
     _emailController = TextEditingController();
     _passwordController = TextEditingController();
+    _phoneController = TextEditingController();
+    _smsCodeController = TextEditingController();
   }
 
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
+    _phoneController.dispose();
+    _smsCodeController.dispose();
     super.dispose();
   }
 
+  // Hides/Unhides entered password in the textfield
   void showPassword() {
     setState(() {
       isPassHidden = !isPassHidden;
     });
   }
 
+  // Sign in with any email and password without verification
   Future<void> _signInWithEmailAndPassword(BuildContext context) async {
     try {
       await FirebaseAuth.instance.createUserWithEmailAndPassword(
@@ -78,14 +94,17 @@ class _MyHomePageState extends State<MyHomePage> {
       _emailController.clear();
       _passwordController.clear();
 
-      Navigator.of(context).push(MaterialPageRoute(
-        builder: (context) => const SignOutPage(),
-      ));
+      if (context.mounted) {
+        Navigator.of(context).push(MaterialPageRoute(
+          builder: (context) => const SignOutPage(),
+        ));
+      }
     } catch (e) {
       log(e.toString());
     }
   }
 
+  // Sign in with google
   Future<void> _signInWithGoogle(BuildContext context) async {
     try {
       final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
@@ -94,17 +113,65 @@ class _MyHomePageState extends State<MyHomePage> {
       final credentials = GoogleAuthProvider.credential(
           accessToken: googleAuth?.accessToken, idToken: googleAuth?.idToken);
 
-      await FirebaseAuth.instance.signInWithCredential(credentials);
-      Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const SignOutPage(),
-          ));
+      final auth = FirebaseAuth.instance;
+      await auth.signInWithCredential(credentials);
+      log('Signed in through Google Account');
+      if (context.mounted) {
+        Navigator.of(context).push(MaterialPageRoute(
+          builder: (context) => const SignOutPage(),
+        ));
+      }
+      var fcmToken = await FirebaseMessaging.instance.getToken();
+      log(fcmToken.toString());
     } catch (e) {
       log('Google Sign In Exception: ${e.toString()}');
     }
   }
 
+  // Function for sending code to device for phone verfication
+  Future<void> _verifyPhoneNumber(BuildContext context) async {
+    try {
+      await FirebaseAuth.instance.verifyPhoneNumber(
+        phoneNumber: _phoneController.text.toString(),
+        verificationCompleted: (phoneAuthCredential) async {
+          await FirebaseAuth.instance.signInWithCredential(phoneAuthCredential);
+          if (context.mounted) {
+            Navigator.of(context).push(MaterialPageRoute(
+              builder: (context) => const SignOutPage(),
+            ));
+          }
+        },
+        verificationFailed: (error) => log(error.toString()),
+        codeSent: (verificationId, forceResendingToken) async {
+          setState(() {
+            verID = verificationId;
+          });
+        },
+        codeAutoRetrievalTimeout: (verificationId) {},
+      );
+    } catch (e) {
+      log(e.toString());
+    }
+  }
+
+  // Sign in with phone number
+  Future<void> _signInWithPhone(BuildContext context) async {
+    try {
+      PhoneAuthCredential phoneCredentials = PhoneAuthProvider.credential(
+          verificationId: verID, smsCode: _smsCodeController.text);
+      await FirebaseAuth.instance.signInWithCredential(phoneCredentials);
+      log('User signed in through phone number');
+      if (context.mounted) {
+        Navigator.of(context).push(MaterialPageRoute(
+          builder: (context) => const SignOutPage(),
+        ));
+      }
+    } catch (e) {
+      log(e.toString());
+    }
+  }
+
+  // Provides visibility Icon for hide/unhide password
   Icon _visibilityIcon() {
     return isPassHidden
         ? const Icon(Icons.visibility)
@@ -183,6 +250,98 @@ class _MyHomePageState extends State<MyHomePage> {
                     },
                     child: Text(
                       'Sign In',
+                      style: Theme.of(context)
+                          .textTheme
+                          .titleLarge
+                          ?.copyWith(fontWeight: FontWeight.bold),
+                    )),
+              ),
+              const SizedBox(
+                height: 30,
+              ),
+              SizedBox(
+                width: width * 0.8,
+                child: FilledButton(
+                    style: ButtonStyle(
+                        padding: WidgetStatePropertyAll(
+                            EdgeInsets.all(width * 0.03)),
+                        backgroundColor:
+                            WidgetStatePropertyAll(Colors.purple.shade100)),
+                    onPressed: () async {
+                      showDialog(
+                        context: context,
+                        builder: (context) {
+                          return AlertDialog(
+                              title: const Text('Phone Number Verification'),
+                              content: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text('Enter Phone Number to verify'),
+                                    SizedBox(
+                                      width: 300,
+                                      child: Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.start,
+                                        children: [
+                                          SizedBox(
+                                            width: 200,
+                                            child: TextFormField(
+                                              controller: _phoneController,
+                                              keyboardType: TextInputType.phone,
+                                              decoration: InputDecoration(
+                                                  hintText: '+92 3001234786',
+                                                  fillColor:
+                                                      Colors.grey.shade200,
+                                                  suffix:
+                                                      const Icon(Icons.phone),
+                                                  border: OutlineInputBorder(
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                              width * 0.05))),
+                                            ),
+                                          ),
+                                          IconButton(
+                                              onPressed: () async {
+                                                _verifyPhoneNumber(context);
+                                              },
+                                              icon: const Icon(Icons.send))
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(
+                                      height: 20,
+                                    ),
+                                    SizedBox(
+                                      width: 200,
+                                      child: TextFormField(
+                                        controller: _smsCodeController,
+                                        keyboardType: TextInputType.phone,
+                                        decoration: InputDecoration(
+                                            hintText: 'SMS code',
+                                            fillColor: Colors.grey.shade200,
+                                            suffix: const Icon(
+                                                Icons.verified_user_outlined),
+                                            border: OutlineInputBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(
+                                                        width * 0.05))),
+                                      ),
+                                    ),
+                                    SizedBox(
+                                        width: 200,
+                                        child: OutlinedButton(
+                                            onPressed: () async {
+                                              _signInWithPhone(context);
+                                            },
+                                            child: const Text('Sign In')))
+                                  ]));
+                        },
+                      );
+                    },
+                    child: Text(
+                      'Sign In with Number',
                       style: Theme.of(context)
                           .textTheme
                           .titleLarge
