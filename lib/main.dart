@@ -5,7 +5,6 @@ import 'package:firebase_auth_practice/sign_out_page.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:firebase_auth_practice/firebase_options.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -89,17 +88,18 @@ class _MyHomePageState extends State<MyHomePage> {
   // Sign in with any email and password without verification
   Future<void> _signInWithEmailAndPassword(BuildContext context) async {
     try {
-      await FirebaseAuth.instance.createUserWithEmailAndPassword(
-          email: _emailController.text, password: _passwordController.text);
-
+      await FirebaseAuth.instance
+          .createUserWithEmailAndPassword(
+              email: _emailController.text, password: _passwordController.text)
+          .then((value) => Navigator.of(context).push(MaterialPageRoute(
+                builder: (context) => const SignOutPage(),
+              )))
+          .onError(
+            (error, stackTrace) =>
+                throw FirebaseAuthException(code: error.toString()),
+          );
       _emailController.clear();
       _passwordController.clear();
-
-      if (context.mounted) {
-        Navigator.of(context).push(MaterialPageRoute(
-          builder: (context) => const SignOutPage(),
-        ));
-      }
     } catch (e) {
       log(e.toString());
     }
@@ -115,13 +115,18 @@ class _MyHomePageState extends State<MyHomePage> {
           accessToken: googleAuth?.accessToken, idToken: googleAuth?.idToken);
 
       final auth = FirebaseAuth.instance;
-      await auth.signInWithCredential(credentials);
+      await auth
+          .signInWithCredential(credentials)
+          .onError(
+            (error, stackTrace) =>
+                throw FirebaseAuthException(code: error.toString()),
+          )
+          .then(
+            (value) => Navigator.of(context).push(MaterialPageRoute(
+              builder: (context) => const SignOutPage(),
+            )),
+          );
       log('Signed in through Google Account');
-      if (context.mounted) {
-        Navigator.of(context).push(MaterialPageRoute(
-          builder: (context) => const SignOutPage(),
-        ));
-      }
       var fcmToken = await FirebaseMessaging.instance.getToken();
       log(fcmToken.toString());
     } catch (e) {
@@ -133,13 +138,15 @@ class _MyHomePageState extends State<MyHomePage> {
   Future<void> _signInAnonymously(BuildContext context) async {
     try {
       await FirebaseAuth.instance.signInAnonymously().then(
-          (value) => ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Signed in as a guest'))));
-      if (context.mounted) {
-        Navigator.of(context).push(MaterialPageRoute(
-          builder: (context) => const SignOutPage(),
-        ));
-      }
+        (value) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Sign in as a guest'),
+          ));
+          Navigator.of(context).push(MaterialPageRoute(
+            builder: (context) => const SignOutPage(),
+          ));
+        },
+      );
     } catch (e) {
       log(e.toString());
     }
@@ -148,24 +155,26 @@ class _MyHomePageState extends State<MyHomePage> {
   // Function for sending code to device for phone verfication
   Future<void> _verifyPhoneNumber(BuildContext context) async {
     try {
-      await FirebaseAuth.instance.verifyPhoneNumber(
-        phoneNumber: _phoneController.text.toString(),
-        verificationCompleted: (phoneAuthCredential) async {
-          await FirebaseAuth.instance.signInWithCredential(phoneAuthCredential);
-          if (context.mounted) {
-            Navigator.of(context).push(MaterialPageRoute(
-              builder: (context) => const SignOutPage(),
-            ));
-          }
-        },
-        verificationFailed: (error) => log(error.toString()),
-        codeSent: (verificationId, forceResendingToken) async {
-          setState(() {
-            verID = verificationId;
-          });
-        },
-        codeAutoRetrievalTimeout: (verificationId) {},
-      );
+      if (_phoneController.text.isNotEmpty) {
+        await FirebaseAuth.instance.verifyPhoneNumber(
+          phoneNumber: _phoneController.text.toString(),
+          verificationCompleted: (phoneAuthCredential) async {
+            await FirebaseAuth.instance
+                .signInWithCredential(phoneAuthCredential)
+                .then((value) {
+                  Navigator.of(context, rootNavigator: true).pop();
+                  Navigator.of(context).push(MaterialPageRoute(
+                      builder: (context) => const SignOutPage(),
+                    ));
+                },);
+          },
+          verificationFailed: (error) => log(error.toString()),
+          codeSent: (verificationId, forceResendingToken) async {
+              verID = verificationId;
+          },
+          codeAutoRetrievalTimeout: (verificationId) {},
+        );
+      }
     } catch (e) {
       log(e.toString());
     }
@@ -289,13 +298,25 @@ class _MyHomePageState extends State<MyHomePage> {
                         context: context,
                         builder: (context) {
                           return AlertDialog(
-                              title: const Text('Phone Number Verification'),
+                              title: Text(
+                                'Phone Number Verification',
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .titleLarge
+                                    ?.copyWith(fontWeight: FontWeight.bold),
+                              ),
                               content: Column(
                                   mainAxisSize: MainAxisSize.min,
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    const Text('Enter Phone Number to verify'),
+                                    Text('Enter Phone Number to verify',
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodyLarge),
+                                    const SizedBox(
+                                      height: 10,
+                                    ),
                                     SizedBox(
                                       width: 300,
                                       child: Row(
@@ -308,9 +329,13 @@ class _MyHomePageState extends State<MyHomePage> {
                                               controller: _phoneController,
                                               keyboardType: TextInputType.phone,
                                               decoration: InputDecoration(
+                                                  filled: true,
                                                   hintText: '+92 3001234786',
                                                   fillColor:
-                                                      Colors.grey.shade200,
+                                                      Colors.grey.shade100,
+                                                  hintStyle: TextStyle(
+                                                      color:
+                                                          Colors.grey.shade500),
                                                   suffix:
                                                       const Icon(Icons.phone),
                                                   border: OutlineInputBorder(
@@ -337,7 +362,10 @@ class _MyHomePageState extends State<MyHomePage> {
                                         keyboardType: TextInputType.phone,
                                         decoration: InputDecoration(
                                             hintText: 'SMS code',
-                                            fillColor: Colors.grey.shade200,
+                                            hintStyle: TextStyle(
+                                                color: Colors.grey.shade500),
+                                            fillColor: Colors.grey.shade100,
+                                            filled: true,
                                             suffix: const Icon(
                                                 Icons.verified_user_outlined),
                                             border: OutlineInputBorder(
@@ -346,9 +374,16 @@ class _MyHomePageState extends State<MyHomePage> {
                                                         width * 0.05))),
                                       ),
                                     ),
+                                    const SizedBox(
+                                      height: 20,
+                                    ),
                                     SizedBox(
-                                        width: 200,
-                                        child: OutlinedButton(
+                                        width: 400,
+                                        child: TextButton(
+                                            style: ButtonStyle(
+                                                backgroundColor:
+                                                    WidgetStatePropertyAll(
+                                                        Colors.purple.shade50)),
                                             onPressed: () async {
                                               _signInWithPhone(context);
                                             },

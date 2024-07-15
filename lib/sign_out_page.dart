@@ -44,9 +44,10 @@ class _SignOutPageState extends State<SignOutPage> {
     super.dispose();
   }
 
-// Sign out from account function
+// Sign out from account functionj
   Future<void> signOutFromAccount(BuildContext context) async {
     try {
+      const CircularProgressIndicator();
       await FirebaseAuth.instance.signOut();
       if (context.mounted) {
         Navigator.of(context).pop();
@@ -101,13 +102,13 @@ class _SignOutPageState extends State<SignOutPage> {
         title: const Text('Sign Out Page'),
         actions: [
           Padding(
-            padding: const EdgeInsets.only(right: 20),
-            child: ElevatedButton(
+              padding: const EdgeInsets.only(right: 20),
+              child: IconButton(
                 onPressed: () async {
                   signOutFromAccount(context);
                 },
-                child: const Text('Sign Out')),
-          )
+                icon: const Icon(Icons.logout_rounded),
+              ))
         ],
       ),
       body: Center(
@@ -120,10 +121,14 @@ class _SignOutPageState extends State<SignOutPage> {
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: TextField(
                   controller: makeController,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
+                      fillColor: Colors.grey.shade200,
+                      filled: true,
                       helperText: 'Make',
                       hintText: 'Enter the make company',
-                      border: OutlineInputBorder()),
+                      border: OutlineInputBorder(
+                          borderSide: BorderSide.none,
+                          borderRadius: BorderRadius.circular(15))),
                 ),
               ),
               Padding(
@@ -131,30 +136,42 @@ class _SignOutPageState extends State<SignOutPage> {
                 child: TextField(
                   controller: modelController,
                   keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
+                      fillColor: Colors.grey.shade200,
+                      filled: true,
                       helperText: 'Model',
                       hintText: 'Enter the model',
-                      border: OutlineInputBorder()),
+                      border: OutlineInputBorder(
+                          borderSide: BorderSide.none,
+                          borderRadius: BorderRadius.circular(15))),
                 ),
               ),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: TextField(
                   controller: typeController,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
+                      fillColor: Colors.grey.shade200,
+                      filled: true,
                       helperText: 'Type',
                       hintText: 'Enter the type',
-                      border: OutlineInputBorder()),
+                      border: OutlineInputBorder(
+                          borderSide: BorderSide.none,
+                          borderRadius: BorderRadius.circular(15))),
                 ),
               ),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: TextField(
                   controller: colorController,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
+                      fillColor: Colors.grey.shade200,
+                      filled: true,
                       helperText: 'Color',
                       hintText: 'Enter the color',
-                      border: OutlineInputBorder()),
+                      border: OutlineInputBorder(
+                          borderSide: BorderSide.none,
+                          borderRadius: BorderRadius.circular(15))),
                 ),
               ),
               const SizedBox(
@@ -162,7 +179,9 @@ class _SignOutPageState extends State<SignOutPage> {
               ),
               SizedBox(
                   width: 350,
-                  child: OutlinedButton(
+                  height: 50,
+                  child: TextButton(
+                    style: ButtonStyle(backgroundColor: WidgetStatePropertyAll(Colors.purple.shade50)),
                       onPressed: addCar, child: const Text('Add Car'))),
               const SizedBox(
                 height: 30,
