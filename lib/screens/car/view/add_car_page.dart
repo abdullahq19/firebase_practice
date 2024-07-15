@@ -9,18 +9,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:image_picker/image_picker.dart';
 
-class SignOutPage extends StatefulWidget {
-  const SignOutPage({super.key});
+class AddCarPage extends StatefulWidget {
+  const AddCarPage({super.key});
 
   @override
-  State<SignOutPage> createState() => _SignOutPageState();
+  State<AddCarPage> createState() => _AddCarPageState();
 }
 
-class _SignOutPageState extends State<SignOutPage> {
-  late final TextEditingController makeController,
-      modelController,
-      typeController,
-      colorController;
+class _AddCarPageState extends State<AddCarPage>
+    with SingleTickerProviderStateMixin {
+  late final TextEditingController _makeController,
+      _modelController,
+      _typeController,
+      _colorController;
 
   final DatabaseService databaseService = DatabaseService();
   File? _image;
@@ -29,18 +30,18 @@ class _SignOutPageState extends State<SignOutPage> {
   @override
   void initState() {
     super.initState();
-    makeController = TextEditingController();
-    modelController = TextEditingController();
-    typeController = TextEditingController();
-    colorController = TextEditingController();
+    _makeController = TextEditingController();
+    _modelController = TextEditingController();
+    _typeController = TextEditingController();
+    _colorController = TextEditingController();
   }
 
   @override
   void dispose() {
-    makeController.dispose();
-    modelController.dispose();
-    typeController.dispose();
-    colorController.dispose();
+    _makeController.dispose();
+    _modelController.dispose();
+    _typeController.dispose();
+    _colorController.dispose();
     super.dispose();
   }
 
@@ -48,30 +49,35 @@ class _SignOutPageState extends State<SignOutPage> {
   Future<void> signOutFromAccount(BuildContext context) async {
     try {
       const CircularProgressIndicator();
-      await FirebaseAuth.instance.signOut();
-      if (context.mounted) {
+      await FirebaseAuth.instance.signOut().then((value) {
         Navigator.of(context).pop();
-      }
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Sign out Successfully'),
+            duration: Duration(seconds: 1)));
+      });
     } catch (e) {
       log(e.toString());
     }
   }
 
-// ADDING A CAR
+// Adding a car
   Future<void> addCar() async {
     try {
-      if (makeController.text.isNotEmpty &&
-          modelController.text.isNotEmpty &&
-          typeController.text.isNotEmpty &&
-          colorController.text.isNotEmpty) {
+      if (_makeController.text.isNotEmpty &&
+          _modelController.text.isNotEmpty &&
+          _typeController.text.isNotEmpty &&
+          _colorController.text.isNotEmpty) {
         final car = Car(
-            make: makeController.text,
-            color: colorController.text,
-            model: int.parse(modelController.text),
-            type: typeController.text);
+            make: _makeController.text,
+            color: _colorController.text,
+            model: int.parse(_modelController.text),
+            type: _typeController.text);
         var inserted = await databaseService.addCar(car).then(
-              (value) => ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Data added successfully'))),
+              (value) =>
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                content: Text('Data added successfully'),
+                duration: Duration(seconds: 1),
+              )),
             );
         log('Data inserted: $inserted');
       }
@@ -86,7 +92,27 @@ class _SignOutPageState extends State<SignOutPage> {
       final storageRef = FirebaseStorage.instance.ref();
       var ref = storageRef
           .child('Image/image${DateTime.now().millisecondsSinceEpoch}');
-      await ref.putFile(image);
+      var uploadTask = ref.putFile(image).snapshotEvents;
+      uploadTask.listen(
+        (event) {
+          // assign animation tween value bytes transfered
+          switch (event.state) {
+            case TaskState.running:
+              log('Uploaded ${(event.bytesTransferred / event.totalBytes * 100).toStringAsFixed(0)}%');
+              CircularProgressIndicator(
+                  value: double.parse(
+                      (event.bytesTransferred / event.totalBytes)
+                          .toStringAsFixed(1)));
+              break;
+            case TaskState.success:
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                content: Text('Image Uploaded Successfully'),
+                duration: Duration(seconds: 1),
+              ));
+            default:
+          }
+        },
+      );
     }
   }
 
@@ -120,7 +146,7 @@ class _SignOutPageState extends State<SignOutPage> {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: TextField(
-                  controller: makeController,
+                  controller: _makeController,
                   decoration: InputDecoration(
                       fillColor: Colors.grey.shade200,
                       filled: true,
@@ -134,7 +160,7 @@ class _SignOutPageState extends State<SignOutPage> {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: TextField(
-                  controller: modelController,
+                  controller: _modelController,
                   keyboardType: TextInputType.number,
                   decoration: InputDecoration(
                       fillColor: Colors.grey.shade200,
@@ -149,7 +175,7 @@ class _SignOutPageState extends State<SignOutPage> {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: TextField(
-                  controller: typeController,
+                  controller: _typeController,
                   decoration: InputDecoration(
                       fillColor: Colors.grey.shade200,
                       filled: true,
@@ -163,7 +189,7 @@ class _SignOutPageState extends State<SignOutPage> {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: TextField(
-                  controller: colorController,
+                  controller: _colorController,
                   decoration: InputDecoration(
                       fillColor: Colors.grey.shade200,
                       filled: true,
@@ -181,8 +207,11 @@ class _SignOutPageState extends State<SignOutPage> {
                   width: 350,
                   height: 50,
                   child: TextButton(
-                    style: ButtonStyle(backgroundColor: WidgetStatePropertyAll(Colors.purple.shade50)),
-                      onPressed: addCar, child: const Text('Add Car'))),
+                      style: ButtonStyle(
+                          backgroundColor:
+                              WidgetStatePropertyAll(Colors.purple.shade50)),
+                      onPressed: addCar,
+                      child: const Text('Add Car'))),
               const SizedBox(
                 height: 30,
               ),
