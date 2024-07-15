@@ -5,6 +5,7 @@ import 'package:firebase_auth_practice/sign_out_page.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:firebase_auth_practice/firebase_options.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -125,6 +126,22 @@ class _MyHomePageState extends State<MyHomePage> {
       log(fcmToken.toString());
     } catch (e) {
       log('Google Sign In Exception: ${e.toString()}');
+    }
+  }
+
+  // Sign in as a anonymous user
+  Future<void> _signInAnonymously(BuildContext context) async {
+    try {
+      await FirebaseAuth.instance.signInAnonymously().then(
+          (value) => ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Signed in as a guest'))));
+      if (context.mounted) {
+        Navigator.of(context).push(MaterialPageRoute(
+          builder: (context) => const SignOutPage(),
+        ));
+      }
+    } catch (e) {
+      log(e.toString());
     }
   }
 
@@ -385,6 +402,18 @@ class _MyHomePageState extends State<MyHomePage> {
                                 WidgetStatePropertyAll(Colors.grey.shade200)),
                         onPressed: () {},
                         icon: const Icon(FontAwesomeIcons.xTwitter)),
+                    IconButton(
+                        padding: EdgeInsets.all(width * 0.05),
+                        style: ButtonStyle(
+                            elevation: const WidgetStatePropertyAll(2),
+                            shadowColor:
+                                const WidgetStatePropertyAll(Colors.black),
+                            backgroundColor:
+                                WidgetStatePropertyAll(Colors.grey.shade200)),
+                        onPressed: () async {
+                          _signInAnonymously(context);
+                        },
+                        icon: const Icon(FontAwesomeIcons.userSecret)),
                   ],
                 ),
               )
