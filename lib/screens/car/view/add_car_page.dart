@@ -4,10 +4,13 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_auth_practice/main.dart';
 import 'package:firebase_auth_practice/model/car_model.dart';
 import 'package:firebase_auth_practice/services/database_service.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:image_picker/image_picker.dart';
+
+String? downloadURL;
 
 class AddCarPage extends StatefulWidget {
   const AddCarPage({super.key});
@@ -26,6 +29,7 @@ class _AddCarPageState extends State<AddCarPage>
   final DatabaseService databaseService = DatabaseService();
   File? _image;
   ImagePicker picker = ImagePicker();
+  String? fcmToken;
 
   @override
   void initState() {
@@ -88,31 +92,33 @@ class _AddCarPageState extends State<AddCarPage>
 
 // Uploading an image from image picker
   Future<void> uploadImage(File? image) async {
-    if (image != null) {
-      final storageRef = FirebaseStorage.instance.ref();
-      var ref = storageRef
-          .child('Image/image${DateTime.now().millisecondsSinceEpoch}');
-      var uploadTask = ref.putFile(image).snapshotEvents;
-      uploadTask.listen(
-        (event) {
-          // assign animation tween value bytes transfered
-          switch (event.state) {
-            case TaskState.running:
-              log('Uploaded ${(event.bytesTransferred / event.totalBytes * 100).toStringAsFixed(0)}%');
-              CircularProgressIndicator(
-                  value: double.parse(
-                      (event.bytesTransferred / event.totalBytes)
-                          .toStringAsFixed(1)));
-              break;
-            case TaskState.success:
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                content: Text('Image Uploaded Successfully'),
-                duration: Duration(seconds: 1),
-              ));
-            default:
-          }
-        },
-      );
+    try {
+      if (image != null) {
+        final storageRef = FirebaseStorage.instance.ref();
+        var ref = storageRef
+            .child('Image/image${DateTime.now().millisecondsSinceEpoch}');
+        var uploadTask = ref.putFile(image).snapshotEvents;
+        uploadTask.listen(
+          (event) async {
+            switch (event.state) {
+              case TaskState.running:
+                log('Uploaded ${(event.bytesTransferred / event.totalBytes * 100).toStringAsFixed(0)}%');
+                break;
+              case TaskState.success:
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                  content: Text('Image Uploaded Successfully'),
+                  duration: Duration(seconds: 1),
+                ));
+                final downloadURL = await ref.getDownloadURL();
+                await service.showNotification(downloadURL);
+              default:
+              print('default state lf uploading image task');
+            }
+          },
+        );
+      }
+    } catch (e) {
+      log(e.toString());
     }
   }
 

@@ -1,8 +1,6 @@
 import 'dart:developer';
-
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_auth_practice/screens/car/view/add_car_page.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -94,8 +92,6 @@ class _MyHomePageState extends State<MyHomePage> {
         },
       );
       log('Signed in through Google Account');
-      var fcmToken = await FirebaseMessaging.instance.getToken();
-      log(fcmToken.toString());
     } catch (e) {
       log('Google Sign In Exception: ${e.toString()}');
     }
@@ -133,10 +129,7 @@ class _MyHomePageState extends State<MyHomePage> {
                 .signInWithCredential(phoneAuthCredential)
                 .then(
               (value) {
-                Navigator.of(context, rootNavigator: true).pop();
-                Navigator.of(context).push(MaterialPageRoute(
-                  builder: (context) => const AddCarPage(),
-                ));
+                Navigator.of(context, rootNavigator: true).popAndPushNamed('/add_car_page');
               },
             );
           },
