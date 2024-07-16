@@ -1,7 +1,9 @@
 import 'dart:developer';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_auth_practice/main.dart';
 import 'package:firebase_auth_practice/screens/car/view/add_car_page.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
@@ -129,7 +131,8 @@ class _MyHomePageState extends State<MyHomePage> {
                 .signInWithCredential(phoneAuthCredential)
                 .then(
               (value) {
-                Navigator.of(context, rootNavigator: true).popAndPushNamed('/add_car_page');
+                Navigator.of(context, rootNavigator: true)
+                    .popAndPushNamed('/add_car_page');
               },
             );
           },
@@ -171,6 +174,11 @@ class _MyHomePageState extends State<MyHomePage> {
 
   @override
   Widget build(BuildContext context) {
+    SchedulerBinding.instance.addPostFrameCallback(
+      (timeStamp) async {
+        await service.requestPermission();
+      },
+    );
     final Size(:width, :height) = MediaQuery.sizeOf(context);
     return Scaffold(
       appBar: AppBar(

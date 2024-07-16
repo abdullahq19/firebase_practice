@@ -4,7 +4,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_auth_practice/main.dart';
 import 'package:firebase_auth_practice/model/car_model.dart';
 import 'package:firebase_auth_practice/services/database_service.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
@@ -112,7 +111,7 @@ class _AddCarPageState extends State<AddCarPage>
                 final downloadURL = await ref.getDownloadURL();
                 await service.showNotification(downloadURL);
               default:
-              print('default state lf uploading image task');
+                log('default state of uploading image task');
             }
           },
         );

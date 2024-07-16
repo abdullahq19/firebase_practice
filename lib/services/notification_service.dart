@@ -1,8 +1,7 @@
 import 'dart:developer';
 import 'dart:io';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:firebase_auth_practice/screens/car/view/add_car_page.dart';
+import 'package:http/http.dart';
 import 'package:path_provider/path_provider.dart';
 
 class NotificationService {
@@ -16,8 +15,8 @@ class NotificationService {
 
   static const _channelID = 'UPIMG';
   static const _channelName = 'UPLOAD_IMAGE_CHANNEL';
-  static const _title = 'Image Upload Status';
-  static const _description = 'Image Uploaded to Firebase Storage';
+  static const _title = 'Alert';
+  static const _description = 'Image Notification';
 
   Future<void> initialize() async {
     androidLocalNotificationPlugin =
@@ -35,25 +34,31 @@ class NotificationService {
     return false;
   }
 
+  // download and save image as a file from firebase storage image url
+  Future<String> downloadAndSaveImage(String url) async {
+    final tempDir = await getTemporaryDirectory();
+    final tempFile = File('${tempDir.path}/image.jpg');
+    final response = await get(Uri.parse(url));
+    await tempFile.writeAsBytes(response.bodyBytes);
+    return tempFile.path;
+  }
+
+  // show notification function
   Future<void> showNotification(String downloadURL) async {
     try {
-      final tempDir = await getTemporaryDirectory();
-      final tempFile = File('${tempDir.path}/image.jpg');
-      final ref = FirebaseStorage.instance.refFromURL(downloadURL);
-      await ref.writeToFile(tempFile);
+      final imageUrl = await downloadAndSaveImage(downloadURL);
+      final bigPictureStyleInformation =
+          BigPictureStyleInformation(FilePathAndroidBitmap(imageUrl));
+
+      final notificationDetails = NotificationDetails(
+          android: AndroidNotificationDetails(_channelID, _channelName,
+              importance: Importance.max,
+              priority: Priority.max,
+              styleInformation: bigPictureStyleInformation,
+              visibility: NotificationVisibility.public));
 
       await localNotificationsPlugin.show(
-          1,
-          _title,
-          _description,
-          NotificationDetails(
-              android: AndroidNotificationDetails(_channelID, _channelName,
-                  styleInformation: BigPictureStyleInformation(
-                      FilePathAndroidBitmap(downloadURL)),
-                  importance: Importance.max,
-                  priority: Priority.max,
-                  visibility: NotificationVisibility.public,
-                  largeIcon: FilePathAndroidBitmap(tempFile.path))));
+          1, _title, _description, notificationDetails);
     } catch (e) {
       log(e.toString());
     }
